@@ -7,7 +7,7 @@ from pygame.locals import *
 
 
 import PyGameUtils
-import Box2DWorld 
+import Box2DWorld
 from isma_epuck import IsmaEpuck
 from isma_expsetup import IsmaExpSetup
 
@@ -17,7 +17,7 @@ box2dWH = (PyGameUtils.SCREEN_WIDTH, PyGameUtils.SCREEN_HEIGHT)
 # PYGAME initialization
 # ***************************
 pygame.init()
-PyGameUtils.setScreenSize(640,480)
+PyGameUtils.setScreenSize(640, 480)
 box2dWH = (PyGameUtils.SCREEN_WIDTH, PyGameUtils.SCREEN_HEIGHT)
 
 # flags = FULLSCREEN | DOUBLEBUF
@@ -26,17 +26,17 @@ screen = pygame.display.set_mode(box2dWH, 0, 32)
 screen.set_alpha(None)
 surfarray.use_arraytype('numpy')
 
-pygame.display.set_caption('Epuck Simulation')
+pygame.display.set_caption('Epuck AWESOME Simulation')
 clock = pygame.time.Clock()
 
-exp = IsmaExpSetup(n=2, debug=True)
-#epuck = IsmaEpuck()
+exp = IsmaExpSetup(n=1, debug=True)
+# epuck = IsmaEpuck()
 
 running = True
 while running:
-    #left, right = epuck.prox_activations()
-    #epuck.left_wheel = 1.0 - left   # to check
-    #epuck.right_wheel = 1.0 - right   # to check
+    # left, right = epuck.prox_activations()
+    # epuck.left_wheel = 1.0 - left   # to check
+    # epuck.right_wheel = 1.0 - right   # to check
 
     # Check the event queue
     for event in pygame.event.get():
@@ -44,13 +44,13 @@ while running:
             continue
 
         if(event.key == pygame.K_LEFT):
-            exp.setMotors(motors=[-1, 1])
+            exp.setMotors(motors=[-5, 5])
         if(event.key == pygame.K_RIGHT):
-            exp.setMotors(motors=[1, -1])
+            exp.setMotors(motors=[5, -5])
         if(event.key == pygame.K_UP):
-            exp.setMotors(motors=[1, 1])
+            exp.setMotors(motors=[5, 5])
         if(event.key == pygame.K_DOWN):
-            exp.setMotors(motors=[-1, -1])
+            exp.setMotors(motors=[-5, -5])
         if(event.key == pygame.K_SPACE):
             exp.setMotors(motors=[0, 0])
 

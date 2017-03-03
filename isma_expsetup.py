@@ -17,8 +17,13 @@ def addWalls(pos, dx=3, dh=0, h=2.8, th=0, bHoriz=True, bVert=True):
         createBox((x + dx + wl, y + yh - 1 + dh / 2 + th), w=wl, h=h + dh, bDynamic=False)
 
 
-def addReward(who, pos=(0,0), vel=(0,0), bDynamic=True, bCollideNoOne=False):
-    obj = createCircle(position=pos, bDynamic=bDynamic, bCollideNoOne=bCollideNoOne, density=10, name="reward", r=0.2)
+def addReward(who, pos=(0,0), vel=(0,0), reward_type=0, bDynamic=True, bCollideNoOne=False):
+    if(reward_type == 0):
+        name, r = "reward", 0.27
+    else:
+        name, r = "reward_small", 0.2
+
+    obj = createCircle(position=pos, bDynamic=bDynamic, bCollideNoOne=bCollideNoOne, density=10, name=name, r=r)
     obj.userData["energy"] = 1.0
     obj.userData["visible"] = 1.0
     obj.linearVelocity = vel
@@ -36,13 +41,14 @@ class IsmaExpSetup(object):
         th = .2
         positions = [(-3, 2 + th), (3, 2 + th)]
         angles = [2 * np.pi, np.pi]
-        self.epucks = [IsmaEpuck(position=positions[i], angle=angles[i], nother=2, nrewsensors=2) for i in range(n)]
+        self.epucks = [IsmaEpuck(position=positions[i], angle=angles[i], nother=2, nrewsensors=4) for i in range(n)]
         # self.epucks = [Epuck(position=positions[i], angle=angles[i], nother=2, nrewsensors=2) for i in range(n)]
         # print(self.epucks)
         addWalls((0, 0), dx=3.75, dh=0.1, h=3, th=th)
         self.objs = []
         addReward(self, pos=(0, 4 + th), vel=(0, 0), bDynamic=False, bCollideNoOne=True)
-        addReward(self, pos=(0, 0 + th), vel=(0, 0), bDynamic=False, bCollideNoOne=True)
+        addReward(self, pos=(0, 0 + th), vel=(0, 0), reward_type=1, bDynamic=False, bCollideNoOne=True)
+
 
     def update(self):
         """Update of epucks positions and gradient sensors: other and reward."""
@@ -53,10 +59,12 @@ class IsmaExpSetup(object):
             for g in e.GradSensors:
                 if(g.name == "other"):
                     centers = [o.getPosition() for o in self.epucks if o != e]
+                    g.update(pos, e.getAngle(), centers)
                 elif(g.name == "reward"):
-                    centers = [o.position for o in self.objs]
-
-                g.update(pos, e.getAngle(), centers)
+                    centers = [o.position for o in self.objs[:1]]
+                    g.update(pos, e.getAngle(), centers)
+                    centers = [o.position for o in self.objs[-1:]]
+                    g.update(pos, e.getAngle(), centers, extremes=1)
 
 
     def setMotors(self, epuck=0, motors=[10, 10]):

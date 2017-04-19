@@ -2,6 +2,8 @@ from Robots import Epuck
 import numpy as np
 from Box2DWorld import vrotate
 from VectorFigUtils import vnorm, dist
+from numpy.random import randn
+from numpy import arange, exp
 
 
 class IsmaEpuck(Epuck):
@@ -41,10 +43,19 @@ class IsmaEpuck(Epuck):
         return 1.0 - np.array(self.body.userData["RewardValues"])
 
     def avoid_walls(self):
-        right, left = self.prox_activations()  # I reverse this because the first value of the array corresponds to the right sensor
+        w_sensors = self.prox_activations()
+        dim_w_sensors = len(self.prox_activations())
+        sigma = 0.01
+        # add some random noise to the sensors
+        w_sensors += sigma * randn(dim_w_sensors)
+        right, left = w_sensors  # I reverse this because the first value of the array corresponds to the right sensor
+        # map the sensors' data exponentially to the motor commands
+        left_exp = exp(2*left)
+        right_exp = exp(2*right)
+        # link sensor data with motor activations a la Braitenberg
         fwd = 0.3
-        left_wheel = fwd + left - right  # to check
-        right_wheel = fwd + right - left   # to check
+        left_wheel = fwd + left_exp - right_exp  # to check
+        right_wheel = fwd + right_exp - left_exp   # to check
         self.add_forces(values=[left_wheel, right_wheel])
         self.avoid_walls_w = max(left, right)  # weight value, not yet implemented
         # print "highest sensor value:", self.avoid_walls_w
@@ -52,27 +63,45 @@ class IsmaEpuck(Epuck):
         # print "wall motors: ", left_wheel, right_wheel
 
     def avoid_epuck(self):
-        right, left = self.epuck_sensors()  # I reverse this because the first value of the array corresponds to the right sensor
+        e_sensors = self.epuck_sensors()
+        dim_e_sensors = len(self.epuck_sensors())
+        sigma = 0.01
+        # add some random noise to the sensors
+        e_sensors += sigma * randn(dim_e_sensors)
+        right, left = e_sensors  # I reverse this because the first value of the array corresponds to the right sensor
+        # map the sensors' data exponentially to the motor commands
+        left_exp = exp(4*left)
+        right_exp = exp(4*right)
+        # link sensor data with motor activations a la Braitenberg
         fwd = 0
-        left_wheel = fwd + left - right  # to check
-        right_wheel = fwd + right - left   # to check
+        left_wheel = fwd + left_exp - right_exp  # to check
+        right_wheel = fwd + right_exp - left_exp   # to check
         self.add_forces(values=[left_wheel, right_wheel])
         self.avoid_epuck_w = max(left, right)  # weight value, not yet implemented
         # print(left, right)
 
     def seek_rewards(self):
-        right_lreward, right_hreward, left_hreward, left_lreward = self.reward_sensors()
+        r_sensors = self.reward_sensors()
+        dim_r_sensors = len(self.reward_sensors())
+        sigma = 0.015
+        # add some random noise to the sensors
+        r_sensors += sigma * randn(dim_r_sensors)
+        right_lreward, right_hreward, left_hreward, left_lreward = r_sensors
         self.seek_high_reward(left_hreward, right_hreward)
-        # self.seek_low_reward(left_lreward, right_lreward)
+        self.seek_low_reward(left_lreward, right_lreward)
 
     def seek_high_reward(self, left=0, right=0):
+        # map the sensors' data exponentially to the motor commands
+        left_exp = exp(2*left)
+        right_exp = exp(2*right)
+        # link sensor data with motor activations a la Braitenberg
         fwd = 0.3
-        left_wheel = fwd + right - left
-        right_wheel = fwd + left - right
+        left_wheel = fwd + right_exp - left_exp
+        right_wheel = fwd + left_exp - right_exp
         # left_wheel = np.exp(2 * (1 - left)) - 1
         # right_wheel = np.exp(2 * (1 - right)) - 1
-        print "Left sensor value", left
-        print "Right sensor value", right
+        # print "Left sensor value", left
+        # print "Right sensor value", right
         self.add_forces(values=[left_wheel, right_wheel])
         # check if the epuck arrived at the low-reward spot
         if left >= 0.9 and left < 1 or right >= 0.9 and right < 1:
@@ -80,8 +109,13 @@ class IsmaEpuck(Epuck):
             print "High Reward obtained!! ", self.reward_score
 
     def seek_low_reward(self, left=0, right=0):
-        left_wheel = 1 - left
-        right_wheel = 1 - right
+        # map the sensors' data exponentially to the motor commands
+        left_exp = exp(2*left)
+        right_exp = exp(2*right)
+        # link sensor data with motor activations a la Braitenberg
+        fwd = 0
+        left_wheel = fwd + right_exp - left_exp
+        right_wheel = fwd + left_exp - right_exp
         self.add_forces(values=[left_wheel * 0.5, right_wheel * 0.5])
         # check if the epuck arrived at the low-reward spot
         if left >= 0.9 and left < 1 or right >= 0.9 and right < 1:
@@ -105,7 +139,7 @@ class IsmaEpuck(Epuck):
         self.motor_commands = []
 
     def update(self):
-        # self.avoid_walls()
+        self.avoid_walls()
         self.avoid_epuck()
         self.seek_rewards()
         self.apply_forces()

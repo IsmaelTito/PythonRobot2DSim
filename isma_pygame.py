@@ -34,6 +34,7 @@ exp_time = 0
 # epuck = IsmaEpuck()
 
 running = True
+
 while running:
     exp_time = pygame.time.get_ticks()/1000
     # left, right = epuck.prox_activations()

@@ -104,9 +104,9 @@ class IsmaEpuck(Epuck):
         # print "Right sensor value", right
         self.add_forces(values=[left_wheel, right_wheel])
         # check if the epuck arrived at the low-reward spot
-        if left >= 0.9 and left < 1 or right >= 0.9 and right < 1:
-            self.reward_score += 2
-            print "High Reward obtained!! ", self.reward_score
+        # if left >= 0.9 and left < 1 or right >= 0.9 and right < 1:
+            # self.reward_score += 2
+            # print "High Reward obtained!! ", self.reward_score
 
     def seek_low_reward(self, left=0, right=0):
         # map the sensors' data exponentially to the motor commands
@@ -118,9 +118,9 @@ class IsmaEpuck(Epuck):
         right_wheel = fwd + left_exp - right_exp
         self.add_forces(values=[left_wheel * 0.5, right_wheel * 0.5])
         # check if the epuck arrived at the low-reward spot
-        if left >= 0.9 and left < 1 or right >= 0.9 and right < 1:
-            self.reward_score += 1
-            print "Low Reward obtained!! ", self.reward_score
+        # if left >= 0.9 and left < 1 or right >= 0.9 and right < 1:
+            # self.reward_score += 1
+            # print "Low Reward obtained!! ", self.reward_score
 
     def add_forces(self, values=[0, 0]):
         self.motor_commands.append(values)
@@ -139,7 +139,7 @@ class IsmaEpuck(Epuck):
         self.motor_commands = []
 
     def update(self):
-        self.avoid_walls()
+        # self.avoid_walls()
         self.avoid_epuck()
         self.seek_rewards()
         self.apply_forces()

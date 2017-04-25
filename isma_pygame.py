@@ -29,7 +29,7 @@ surfarray.use_arraytype('numpy')
 pygame.display.set_caption('Epuck AWESOME Simulation')
 clock = pygame.time.Clock()
 
-exp = IsmaExpSetup(n=2, debug=True)
+exp = IsmaExpSetup(n=2, payoff_type=0, debug=True)
 exp_time = 0
 # epuck = IsmaEpuck()
 
@@ -55,7 +55,7 @@ while running:
         if(event.key == pygame.K_DOWN):
             exp.setMotors(motors=[-10, -10])
         if(event.key == pygame.K_SPACE):
-            exp.setMotors(motors=[0, 0])
+            exp.restart()
 
         if event.type == pygame.QUIT or event.key == pygame.K_ESCAPE:
             # The user closed the window or pressed escape
@@ -67,6 +67,7 @@ while running:
     PyGameUtils.draw_world(screen)
 
     exp.update()
+    # exp.checkPositions()
     Box2DWorld.step()
 
     # PyGameUtils.draw_salient(screen, exp)

@@ -29,7 +29,7 @@ surfarray.use_arraytype('numpy')
 pygame.display.set_caption('Epuck AWESOME Simulation')
 clock = pygame.time.Clock()
 
-exp = IsmaExpSetup(n=2, payoff_type=0, debug=True)
+exp = IsmaExpSetup(n=2, rounds=2, payoff="high", debug=True)
 exp_time = 0
 # epuck = IsmaEpuck()
 
@@ -40,7 +40,8 @@ while running:
     # left, right = epuck.prox_activations()
     # epuck.left_wheel = 1.0 - left   # to check
     # epuck.right_wheel = 1.0 - right   # to check
-
+    if (exp.round_n > exp.total_rounds):
+        running = False
     # Check the event queue
     for event in pygame.event.get():
         if(event.type != pygame.KEYDOWN):

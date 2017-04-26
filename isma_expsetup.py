@@ -1,6 +1,8 @@
 import numpy as np
 import Box2D
 import csv
+import string
+import random
 from Box2DWorld import (world, createBox, createCircle, collisions)
 from VectorFigUtils import vnorm, dist
 from ExpRobotSetup import ExpSetupEpuck
@@ -8,7 +10,11 @@ from isma_epuck import IsmaEpuck
 from numpy.random import rand
 
 
-def addWalls(pos, dx=3, dh=0, h=2.8, th=0, bHoriz=True, bVert=True):               
+def id_generator(length=8, chars=string.ascii_lowercase + string.digits):
+    return ''.join(random.choice(chars) for i in range(length))
+
+
+def addWalls(pos, dx=3, dh=0, h=2.8, th=0, bHoriz=True, bVert=True):
     x, y = pos
     wl = 0.2
     yh = (5 + 1) / 2.0
@@ -24,7 +30,7 @@ def addWalls(pos, dx=3, dh=0, h=2.8, th=0, bHoriz=True, bVert=True):
         createBox((x + dx + wl + 0.1, y + yh - 0.85 + dh / 2 + th), w=wl, h=h + 0.3 + dh, bDynamic=False, name="wall_right")  # vertical der
 
 
-def addReward(who, pos=(0,0), vel=(0,0), reward_type=0, bDynamic=True, bCollideNoOne=False):
+def addReward(who, pos=(0, 0), vel=(0, 0), reward_type=0, bDynamic=True, bCollideNoOne=False):
     if(reward_type == 0):
         name, r = "reward", 0.27
     else:
@@ -37,7 +43,7 @@ def addReward(who, pos=(0,0), vel=(0,0), reward_type=0, bDynamic=True, bCollideN
     who.objs.append(obj)
 
 
-def addCircle(who, pos=(0,0), vel=(0,0), bDynamic=False, bCollideNoOne=False):
+def addCircle(who, pos=(0, 0), vel=(0, 0), bDynamic=False, bCollideNoOne=False):
     r = 0.85  # PREVIOUSLY WAS 0.75
     obj = createCircle(position=pos, bDynamic=bDynamic, bCollideNoOne=bCollideNoOne, density=0, r=r)
     obj.userData["energy"] = 1.0
@@ -49,30 +55,27 @@ def addCircle(who, pos=(0,0), vel=(0,0), bDynamic=False, bCollideNoOne=False):
 class IsmaExpSetup(object):
     """Exp setup class with two epucks and two reward sites."""
 
-    def __init__(self, n=1, payoff_type=0, debug=False):
+    def __init__(self, n=1, rounds=50, payoff="high", debug=False):
         """Initialize the variables we need to store in each round of the game"""
+        self.total_rounds = rounds
         # HIGH: 4v1, LOW: 2v1
-        if(payoff_type == 0):
-            self.payoff_structure = "high"
-        else:
-            self.payoff_structure = "low"
+        self.payoff_structure = payoff
         self.round_n = 1
         self.timestep = 0
         self.high_reward_location = "-"
-        self.player1 = "host"
-        self.player2 = "other"
-        self.player1_pos = (0, 0)
-        self.player2_pos = (0, 0)
-        self.player1_ang = 0
-        self.player2_ang = 0
-        self.player1_score = 0
-        self.player2_score = 0
+        self.player1, self.player2 = "host", "other"
+        self.player1_pos, self.player2_pos = (0, 0), (0, 0)
+        self.player1_ang, self.player2_ang = 0, 0
+        self.player1_score, self.player2_score = 0, 0
+        self.dyadID = "game_"+id_generator(8)+"-"+id_generator(4)+"-"+id_generator(4)+"-"+id_generator(4)+"-"+id_generator(12)
         self.round_data = []
         """Create the two epucks, two rewards with circles around and walls."""
         global bDebug
         bDebug = debug
         print "-------------------------------------------------"
+        print "Dyad ID:", self.dyadID
         print "Payoff Condition:", self.payoff_structure
+        print "STARTING ROUND...", self.round_n
         th = .2
         positions = [(-4, 2.5 + th), (4, 2.5 + th)]
         angles = [2 * np.pi, np.pi]
@@ -81,7 +84,7 @@ class IsmaExpSetup(object):
         # print(self.epucks)
         self.objs = []
         r = rand()
-        print r
+        # print r
         if r < 0.5:
             self.high_reward_location = "top"
             addReward(self, pos=(0, 5 + th), vel=(0, 0), bDynamic=False, bCollideNoOne=True)  # BIG reward
@@ -104,10 +107,13 @@ class IsmaExpSetup(object):
         """Set out a timer to store data each 3 seconds"""
         if self.timer == 0:
             self.timestep += 1
-            print "BITCH! timestep number: ", self.timestep
+            # print "BITCH! timestep number: ", self.timestep
             self.storedata()
         self.timer += 1
         self.timer = self.timer % 90  # each 3 secs store data
+
+        """If the round lasts more than 40 timesteps, the round ends"""
+        if self.timestep > 30: restart()
 
         """Update of epucks positions and gradient sensors: other and reward."""
         for e in self.epucks:
@@ -158,6 +164,19 @@ class IsmaExpSetup(object):
                 self.savedata()
                 self.restart()
 
+        elif (p2hr_dist < 0.5):
+            if (p1hr_dist < 1.25):
+                print "IT'S A TIE !! Both players get 0 points"
+                self.savedata()
+                self.restart()
+            else:
+                print "Player 2 obtained the HIGH Reward !!"
+                if (self.payoff_structure == "high"): self.player2_score += 4
+                if (self.payoff_structure == "low"): self.player2_score += 2
+                self.player1_score += 1
+                self.savedata()
+                self.restart()
+
         if (p1lr_dist < 0.5):
             if (p2lr_dist < 1.25):
                 print "IT'S A TIE !! Both players get 0 points"
@@ -171,20 +190,7 @@ class IsmaExpSetup(object):
                 self.savedata()
                 self.restart()
 
-        if (p2hr_dist < 0.5):
-            if (p1hr_dist < 1.25):
-                print "IT'S A TIE !! Both players get 0 points"
-                self.savedata()
-                self.restart()
-            else:
-                print "Player 2 obtained the HIGH Reward !!"
-                if (self.payoff_structure == "high"): self.player2_score += 4
-                if (self.payoff_structure == "low"): self.player2_score += 2
-                self.player1_score += 1
-                self.savedata()
-                self.restart()
-
-        if (p2lr_dist < 0.5):
+        elif (p2lr_dist < 0.5):
             if (p1lr_dist < 1.25):
                 print "IT'S A TIE !! Both players get 0 points"
                 self.savedata()
@@ -208,18 +214,17 @@ class IsmaExpSetup(object):
 
     def savedata(self):
         self.storedata()
-        with open('test.csv', 'wb') as myfile:
+        with open(self.dyadID+'.csv', 'wb') as myfile:
             writer = csv.writer(myfile)
             writer.writerows(self.round_data)
 
     def restart(self):
-        """Restart the initial conditions and play again"""
-        print "-------------------------------------------------"
         self.round_n += 1
         self.timestep = 0
 
-        print "STARTING ROUND...", self.round_n
+        """Restart the initial conditions and play again"""
         print "Total Score - Player 1:", self.player1_score, ", Player 2:", self.player2_score
+        print "-------------------------------------------------"
 
         """Locate the epucks in their corresponding positions and angles"""
         th = .2
@@ -233,10 +238,10 @@ class IsmaExpSetup(object):
         self.epucks[1].setPosition(positions[1])
         self.epucks[0].body.angle = angles[0]
         self.epucks[1].body.angle = angles[1]
-
+        self.checkPositions()
         """Relocate the reward spots again"""
         r = rand()
-        print r
+        #print r
         if r < 0.5:
             self.high_reward_location = "top"
             self.objs[0].position = (0, 5 + th)
@@ -245,3 +250,5 @@ class IsmaExpSetup(object):
             self.high_reward_location = "bottom"
             self.objs[0].position = (0, 0 + th)
             self.objs[1].position = (0, 5 + th)
+
+        print "STARTING ROUND...", self.round_n

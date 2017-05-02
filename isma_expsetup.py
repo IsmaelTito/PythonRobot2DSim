@@ -8,6 +8,7 @@ from VectorFigUtils import vnorm, dist
 from ExpRobotSetup import ExpSetupEpuck
 from isma_epuck import IsmaEpuck
 from numpy.random import rand
+from config import config_data
 
 
 def id_generator(length=8, chars=string.ascii_lowercase + string.digits):
@@ -44,7 +45,7 @@ def addReward(who, pos=(0, 0), vel=(0, 0), reward_type=0, bDynamic=True, bCollid
 
 
 def addCircle(who, pos=(0, 0), vel=(0, 0), bDynamic=False, bCollideNoOne=False):
-    r = 0.85  # PREVIOUSLY WAS 0.75
+    r = 1.05  # PREVIOUSLY WAS 0.75
     obj = createCircle(position=pos, bDynamic=bDynamic, bCollideNoOne=bCollideNoOne, density=0, r=r)
     obj.userData["energy"] = 1.0
     obj.userData["visible"] = 1.0
@@ -57,11 +58,13 @@ class IsmaExpSetup(object):
 
     def __init__(self, n=1, rounds=50, payoff="high", debug=False):
         """Initialize the variables we need to store in each round of the game"""
+        self.parameters = [config_data['epuck_error'], config_data['reward_error'], config_data['epuck_exp'], config_data['reward_exp'], config_data['l_reward_weight']]
         self.total_rounds = rounds
-        # HIGH: 4v1, LOW: 2v1
-        self.payoff_structure = payoff
+        self.payoff_structure = payoff         # HIGH: 4v1, LOW: 2v1
         self.round_n = 1
         self.timestep = 0
+        self.timeout_n = 0
+        self.timeout = False
         self.high_reward_location = "-"
         self.player1, self.player2 = "host", "other"
         self.player1_pos, self.player2_pos = (0, 0), (0, 0)
@@ -73,6 +76,7 @@ class IsmaExpSetup(object):
         global bDebug
         bDebug = debug
         print "-------------------------------------------------"
+        print "Initial parameters:", self.parameters
         print "Dyad ID:", self.dyadID
         print "Payoff Condition:", self.payoff_structure
         print "STARTING ROUND...", self.round_n
@@ -110,14 +114,20 @@ class IsmaExpSetup(object):
             # print "BITCH! timestep number: ", self.timestep
             self.storedata()
         self.timer += 1
-        self.timer = self.timer % 90  # each 3 secs store data
+        self.timer = self.timer % 90  # each 3 secs store data (in 30 FPS), with 60FPs: each 1,5 secs
 
-        """If the round lasts more than 40 timesteps, the round ends"""
-        if self.timestep > 30: restart()
+        """If the round lasts more than 30 timesteps, the round ends"""
+        if self.timestep > 30:
+            print "TIMEOUT !! This round doesn't count!"
+            self.timeout = True
+            self.timeout_n += 1
+            self.savedata()
+            self.restart()
 
         """Update of epucks positions and gradient sensors: other and reward."""
         for e in self.epucks:
             e.update()
+            # print "avoid_epuck error:", e.sigma
             pos = e.getPosition()
 
             for g in e.GradSensors:
@@ -151,7 +161,7 @@ class IsmaExpSetup(object):
         p2lr_dist = dist(self.player2_pos, lreward_pos)
 
         if (p1hr_dist < 0.5):  # REWARD AT 0.5, CIRCLE AT 1.25
-            if (p2hr_dist < 1.25):
+            if (p2hr_dist < 1.5):
                 print "IT'S A TIE !! Both players get 0 points"
                 self.savedata()
                 self.restart()
@@ -165,7 +175,7 @@ class IsmaExpSetup(object):
                 self.restart()
 
         elif (p2hr_dist < 0.5):
-            if (p1hr_dist < 1.25):
+            if (p1hr_dist < 1.5):
                 print "IT'S A TIE !! Both players get 0 points"
                 self.savedata()
                 self.restart()
@@ -178,7 +188,7 @@ class IsmaExpSetup(object):
                 self.restart()
 
         if (p1lr_dist < 0.5):
-            if (p2lr_dist < 1.25):
+            if (p2lr_dist < 1.5):
                 print "IT'S A TIE !! Both players get 0 points"
                 self.savedata()
                 self.restart()
@@ -191,7 +201,7 @@ class IsmaExpSetup(object):
                 self.restart()
 
         elif (p2lr_dist < 0.5):
-            if (p1lr_dist < 1.25):
+            if (p1lr_dist < 1.5):
                 print "IT'S A TIE !! Both players get 0 points"
                 self.savedata()
                 self.restart()
@@ -206,8 +216,12 @@ class IsmaExpSetup(object):
     def storedata(self):
         # player1_data = [self.round_n, self.timestep, self.high_reward_location, self.player1, self.player1_pos[0], self.player1_pos[1], self.player1_ang, self.player1_score, 0]
         # player2_data = [self.round_n, self.timestep, self.high_reward_location, self.player2, self.player2_pos[0], self.player2_pos[1], self.player2_ang, self.player2_score, 0]
-        player1_data = [self.round_n, self.timestep, self.high_reward_location, self.player1, self.player1_pos[0], self.player1_pos[1], self.player1_ang, self.player1_score, 0]
-        player2_data = [self.round_n, self.timestep, self.high_reward_location, self.player2, self.player2_pos[0], self.player2_pos[1], self.player2_ang, self.player2_score, 0]
+        if (self.timeout is True):
+            player1_data = [self.round_n, self.timestep, self.high_reward_location, self.player1, self.player1_pos[0], self.player1_pos[1], self.player1_ang, self.player1_score, self.timeout_n]
+            player2_data = [self.round_n, self.timestep, self.high_reward_location, self.player2, self.player2_pos[0], self.player2_pos[1], self.player2_ang, self.player2_score, self.timeout_n]
+        else:
+            player1_data = [self.round_n, self.timestep, self.high_reward_location, self.player1, self.player1_pos[0], self.player1_pos[1], self.player1_ang, self.player1_score, 0]
+            player2_data = [self.round_n, self.timestep, self.high_reward_location, self.player2, self.player2_pos[0], self.player2_pos[1], self.player2_ang, self.player2_score, 0]            
 
         self.round_data.append(player1_data)
         self.round_data.append(player2_data)
@@ -219,8 +233,10 @@ class IsmaExpSetup(object):
             writer.writerows(self.round_data)
 
     def restart(self):
-        self.round_n += 1
+        if (self.timeout is False): self.round_n += 1
+        self.timer = 0
         self.timestep = 0
+        self.timeout = False
 
         """Restart the initial conditions and play again"""
         print "Total Score - Player 1:", self.player1_score, ", Player 2:", self.player2_score
@@ -241,7 +257,7 @@ class IsmaExpSetup(object):
         self.checkPositions()
         """Relocate the reward spots again"""
         r = rand()
-        #print r
+        # print r
         if r < 0.5:
             self.high_reward_location = "top"
             self.objs[0].position = (0, 5 + th)

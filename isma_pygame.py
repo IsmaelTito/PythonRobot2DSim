@@ -29,7 +29,7 @@ surfarray.use_arraytype('numpy')
 pygame.display.set_caption('Epuck AWESOME Simulation')
 clock = pygame.time.Clock()
 
-exp = IsmaExpSetup(n=2, rounds=2, payoff="high", debug=True)
+exp = IsmaExpSetup(n=2, rounds=50, payoff="high", debug=True)
 exp_time = 0
 # epuck = IsmaEpuck()
 
@@ -74,7 +74,7 @@ while running:
     # PyGameUtils.draw_salient(screen, exp)
 
     pygame.display.flip()              # Flip the screen and try to keep at the target FPS
-    clock.tick(30)
+    clock.tick(60)
     pygame.display.set_caption("FPS: {:6.3}{}".format(clock.get_fps(), " "*5))
 
     # If one of the ePucks gets the High Reward, the other get instantly the Low Reward and the experiment ends

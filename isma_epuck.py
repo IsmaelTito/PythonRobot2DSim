@@ -4,17 +4,18 @@ from Box2DWorld import vrotate
 from VectorFigUtils import vnorm, dist
 from numpy.random import randn
 from numpy import arange, exp
+from config import config_data
 
 
 class IsmaEpuck(Epuck):
     def __init__(self, position=(0, 0), angle=np.pi / 2, r=0.48, bHorizontal=False, frontIR=2, nother=0, nrewsensors=0):
         Epuck.__init__(self, position, angle, r, bHorizontal, frontIR, nother, nrewsensors)
         self.motor_commands = []
-        self.avoid_walls_w = 0.9
-        self.avoid_epuck_w = 0.5
-        self.seek_high_reward_w = 0.9
-        self.seek_low_reward_w = 0.5
-        self.reward_score = 0
+        # self.avoid_walls_w = 0.9
+        # self.avoid_epuck_w = 0.5
+        # self.seek_high_reward_w = 0.9
+        # self.seek_low_reward_w = 0.5
+        # self.reward_score = 0
         # print "Epuck initial reward score: ", self.reward_score
 
     @property
@@ -65,13 +66,14 @@ class IsmaEpuck(Epuck):
     def avoid_epuck(self):
         e_sensors = self.epuck_sensors()
         dim_e_sensors = len(self.epuck_sensors())
-        sigma = 0.01
+        sigma = config_data['epuck_error']  # around 0.05
+        # print "avoid_epuck error:", sigma
         # add some random noise to the sensors
         e_sensors += sigma * randn(dim_e_sensors)
         right, left = e_sensors  # I reverse this because the first value of the array corresponds to the right sensor
         # map the sensors' data exponentially to the motor commands
-        left_exp = exp(4*left)
-        right_exp = exp(4*right)
+        left_exp = exp(config_data['epuck_exp']*left)
+        right_exp = exp(config_data['epuck_exp']*right)
         # link sensor data with motor activations a la Braitenberg
         fwd = 0
         left_wheel = fwd + left_exp - right_exp  # to check
@@ -83,7 +85,7 @@ class IsmaEpuck(Epuck):
     def seek_rewards(self):
         r_sensors = self.reward_sensors()
         dim_r_sensors = len(self.reward_sensors())
-        sigma = 0.015
+        sigma = config_data['reward_error']
         # add some random noise to the sensors
         r_sensors += sigma * randn(dim_r_sensors)
         right_lreward, right_hreward, left_hreward, left_lreward = r_sensors
@@ -92,8 +94,8 @@ class IsmaEpuck(Epuck):
 
     def seek_high_reward(self, left=0, right=0):
         # map the sensors' data exponentially to the motor commands
-        left_exp = exp(2*left)
-        right_exp = exp(2*right)
+        left_exp = exp(config_data['reward_exp']*left)
+        right_exp = exp(config_data['reward_exp']*right)
         # link sensor data with motor activations a la Braitenberg
         fwd = 0.3
         left_wheel = fwd + right_exp - left_exp
@@ -105,22 +107,22 @@ class IsmaEpuck(Epuck):
         self.add_forces(values=[left_wheel, right_wheel])
         # check if the epuck arrived at the low-reward spot
         # if left >= 0.9 and left < 1 or right >= 0.9 and right < 1:
-            # self.reward_score += 2
-            # print "High Reward obtained!! ", self.reward_score
+        #     self.reward_score += 2
+        #     print "High Reward obtained!! ", self.reward_score
 
     def seek_low_reward(self, left=0, right=0):
         # map the sensors' data exponentially to the motor commands
-        left_exp = exp(2*left)
-        right_exp = exp(2*right)
+        left_exp = exp(config_data['reward_exp']*left)
+        right_exp = exp(config_data['reward_exp']*right)
         # link sensor data with motor activations a la Braitenberg
         fwd = 0
         left_wheel = fwd + right_exp - left_exp
         right_wheel = fwd + left_exp - right_exp
-        self.add_forces(values=[left_wheel * 0.5, right_wheel * 0.5])
+        self.add_forces(values=[left_wheel * config_data['l_reward_weight'], right_wheel * config_data['l_reward_weight']])
         # check if the epuck arrived at the low-reward spot
         # if left >= 0.9 and left < 1 or right >= 0.9 and right < 1:
-            # self.reward_score += 1
-            # print "Low Reward obtained!! ", self.reward_score
+        #     self.reward_score += 1
+        #     print "Low Reward obtained!! ", self.reward_score
 
     def add_forces(self, values=[0, 0]):
         self.motor_commands.append(values)

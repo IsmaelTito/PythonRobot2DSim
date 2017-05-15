@@ -12,7 +12,7 @@ class IsmaEpuck(Epuck):
         Epuck.__init__(self, position, angle, r, bHorizontal, frontIR, nother, nrewsensors)
         self.motor_commands = []
         self.high_reward_value = 1
-        # self.avoid_epuck_w = 0.5
+        self.avoid_epuck_w = 0.5
         # self.seek_high_reward_w = 1.0
         # self.seek_low_reward_w = 0.5
 
@@ -58,8 +58,10 @@ class IsmaEpuck(Epuck):
         left_wheel = fwd + left_exp - right_exp  # to check
         right_wheel = fwd + right_exp - left_exp   # to check
         # send the resulting motor commands to a command-integration function
-        self.add_forces(values=[left_wheel, right_wheel])
-        # self.avoid_epuck_w = max(left, right)  # weight value, not yet implemented
+        # self.add_forces(values=[left_wheel, right_wheel])
+        # self.avoid_epuck_w = max(left, right)  # weight value
+        # print "Avoid Epuck Weight:", self.avoid_epuck_w
+        self.add_forces(values=[left_wheel * self.avoid_epuck_w, right_wheel * self.avoid_epuck_w])
 
     def seek_rewards(self):
     	# get the sensors' data
@@ -75,12 +77,12 @@ class IsmaEpuck(Epuck):
         self.seek_low_reward(left_lreward, right_lreward)
 
     def seek_high_reward(self, left=0, right=0):
-    	c = 0.5
-        # map the sensors' data exponentially to the motor commands
-        # left_exp = c * self.high_reward_value * exp(config_data['reward_exp']*left)
-        # right_exp = c * self.high_reward_value * exp(config_data['reward_exp']*right)
-        left_exp = exp(config_data['reward_exp']*left)
-        right_exp = exp(config_data['reward_exp']*right)
+    	c = 0.8
+    	# map the sensors' data exponentially to the motor commands
+        left_exp = c * self.high_reward_value * exp(config_data['reward_exp']*left)
+        right_exp = c * self.high_reward_value * exp(config_data['reward_exp']*right)
+        # left_exp = exp(config_data['reward_exp']*left)
+        # right_exp = exp(config_data['reward_exp']*right)
         # link sensor data with motor activations a la Braitenberg
         fwd = 0.3
         left_wheel = fwd + right_exp - left_exp
@@ -89,19 +91,19 @@ class IsmaEpuck(Epuck):
         self.add_forces(values=[left_wheel, right_wheel])
 
     def seek_low_reward(self, left=0, right=0):
-    	c = 0.5
+    	c = 0.8
         # map the sensors' data exponentially to the motor commands
-        # left_exp = c * exp(config_data['reward_exp']*left)
-        # right_exp = c * exp(config_data['reward_exp']*right)
-        left_exp = exp(config_data['reward_exp']*left)
-        right_exp = exp(config_data['reward_exp']*right)
+        left_exp = c * exp(config_data['reward_exp']*left)
+        right_exp = c * exp(config_data['reward_exp']*right)
+        # left_exp = exp(config_data['reward_exp']*left)
+        # right_exp = exp(config_data['reward_exp']*right)
         # link sensor data with motor activations a la Braitenberg
         fwd = 0.3
         left_wheel = fwd + right_exp - left_exp
         right_wheel = fwd + left_exp - right_exp
         # send the resulting motor commands to a command-integration function
-        # self.add_forces(values=[left_wheel, right_wheel])
-        self.add_forces(values=[left_wheel * config_data['l_reward_weight'], right_wheel * config_data['l_reward_weight']])
+        self.add_forces(values=[left_wheel, right_wheel])
+        # self.add_forces(values=[left_wheel * config_data['l_reward_weight'], right_wheel * config_data['l_reward_weight']])
 
     def add_forces(self, values=[0, 0]):
     	# receive motor commands and store them together

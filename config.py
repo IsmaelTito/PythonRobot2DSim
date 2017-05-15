@@ -1,5 +1,5 @@
 
-config_data = {'epuck_error': 0.05, 'reward_error': 0.025, 'epuck_exp': 4.5, 'reward_exp': 2.85, 'l_reward_weight': 0.75, 'reward_area': 0.675}
+config_data = {'epuck_error': 0.05, 'reward_error': 0.025, 'epuck_exp': 5, 'reward_exp': 2, 'l_reward_weight': 0.75, 'reward_area': 0.675}
 
 
 def set_parameters(e_error, r_error, e_exp, r_exp, lr_weight, r_area):

@@ -126,7 +126,7 @@ class IsmaExpSetup(object):
             # print "BITCH! timestep number: ", self.timestep
             self.storedata()
         self.timer += 1
-        self.timer = self.timer % 30  # ie: with 90, each 3 secs store data (in 30 FPS), with 60FPs: each 1,5 secs
+        self.timer = self.timer % 40  # ie: with 90, each 3 secs store data (in 30 FPS), with 60FPs: each 1,5 secs
 
         """If the round lasts more than 30 timesteps, the round ends"""
         if self.timestep > 60:
@@ -154,21 +154,41 @@ class IsmaExpSetup(object):
     def setMotors(self, epuck=0, motors=[10, 10]):
         self.epucks[epuck].motors = motors
 
+    def constrain(self, n, minn, maxn):
+        if n < minn:
+            return minn
+        elif n > maxn:
+            return maxn
+        else:
+            return n
+
     def checkPositions(self):
         """Get the positions of both epucks and rewards"""
         self.player1_pos = self.epucks[0].getPosition()
         self.player2_pos = self.epucks[1].getPosition()
 
+        """Calculate distance between both epucks"""
+        epuck_dist = dist(self.player1_pos, self.player2_pos)
+        epuck_dist = self.constrain(epuck_dist, 0, 2)
+        # print "epuck distance:", epuck_dist
+
+        for e in self.epucks:
+            e.avoid_epuck_w = 2.5 - epuck_dist
+
         # convert positions and angles
-        self.p1_absposx = round(self.player1_pos[0], 3)
-        self.p1_absposy = round(self.player1_pos[1], 3)
-        self.p1_absposx = ((self.p1_absposx + 4)  * (540-180)/8) + 180
-        self.p1_absposy = ((self.p1_absposy - 2.7) * (240-360)/2.5) + 240
+        #self.p1_absposx = round(self.player1_pos[0], 3)
+        #self.p1_absposy = round(self.player1_pos[1], 3)
+        self.p1_absposx = ((self.player1_pos[0] + 4)  * (540-180)/8) + 180
+        self.p1_absposy = ((self.player1_pos[1] - 2.7) * (240-360)/2.5) + 240
+        self.p1_absposx = round(self.p1_absposx, 3)
+        self.p1_absposy = round(self.p1_absposy, 3)
         
-        self.p2_absposx = round(self.player2_pos[0], 3)
-        self.p2_absposy = round(self.player2_pos[1], 3)
-        self.p2_absposx = ((self.p2_absposx - 4)  * (540-180)/8) + 540
-        self.p2_absposy = ((self.p2_absposy - 2.7) * (240-360)/2.5) + 240
+        #self.p2_absposx = round(self.player2_pos[0], 3)
+        #self.p2_absposy = round(self.player2_pos[1], 3)
+        self.p2_absposx = ((self.player2_pos[0] - 4)  * (540-180)/8) + 540
+        self.p2_absposy = ((self.player2_pos[1] - 2.7) * (240-360)/2.5) + 240
+        self.p2_absposx = round(self.p2_absposx, 3)
+        self.p2_absposy = round(self.p2_absposy, 3)
 
         self.player1_ang = int(np.rad2deg(self.epucks[0].getAngle())) + 90
         self.player2_ang = int(np.rad2deg(self.epucks[1].getAngle())) + 90

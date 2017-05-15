@@ -45,7 +45,7 @@ def addReward(who, pos=(0, 0), vel=(0, 0), reward_type=0, bDynamic=True, bCollid
 
 
 def addCircle(who, pos=(0, 0), vel=(0, 0), bDynamic=False, bCollideNoOne=False):
-    r = 1.05  # PREVIOUSLY WAS 0.75
+    r = 1.06  # PREVIOUSLY WAS 0.75
     obj = createCircle(position=pos, bDynamic=bDynamic, bCollideNoOne=bCollideNoOne, density=0, r=r)
     obj.userData["energy"] = 1.0
     obj.userData["visible"] = 1.0
@@ -58,7 +58,7 @@ class IsmaExpSetup(object):
 
     def __init__(self, n=1, rounds=50, payoff="high", debug=False):
         """Initialize the variables we need to store in each round of the game"""
-        self.parameters = [config_data['epuck_error'], config_data['reward_error'], config_data['epuck_exp'], config_data['reward_exp'], config_data['l_reward_weight']]
+        self.parameters = [config_data['epuck_error'], config_data['reward_error'], config_data['epuck_exp'], config_data['reward_exp'], config_data['l_reward_weight'], config_data['reward_area']]
         self.total_rounds = rounds
         self.payoff_structure = payoff         # HIGH: 4v1, LOW: 2v1
         self.round_n = 1
@@ -68,8 +68,10 @@ class IsmaExpSetup(object):
         self.high_reward_location = "-"
         self.player1, self.player2 = "host", "other"
         self.player1_pos, self.player2_pos = (0, 0), (0, 0)
+        # self.p1_abspos = (0, 0)
         self.player1_ang, self.player2_ang = 0, 0
         self.player1_score, self.player2_score = 0, 0
+        self.player1_wins, self.player2_wins, self.ties_n = 0, 0, 0
         self.dyadID = "game_"+id_generator(8)+"-"+id_generator(4)+"-"+id_generator(4)+"-"+id_generator(4)+"-"+id_generator(12)
         self.round_data = []
         """Create the two epucks, two rewards with circles around and walls."""
@@ -84,9 +86,17 @@ class IsmaExpSetup(object):
         positions = [(-4, 2.5 + th), (4, 2.5 + th)]
         angles = [2 * np.pi, np.pi]
         self.epucks = [IsmaEpuck(position=positions[i], angle=angles[i], nother=2, nrewsensors=4) for i in range(n)]
-        # self.epucks = [Epuck(position=positions[i], angle=angles[i], nother=2, nrewsensors=2) for i in range(n)]
-        # print(self.epucks)
+        for e in self.epucks:
+            if (self.payoff_structure == "high"):
+                e.high_reward_value = 4
+                # print "High reward value:", e.high_reward_value
+            if (self.payoff_structure == "low"):
+                e.high_reward_value = 2
+                # print "High reward value:", e.high_reward_value
         self.objs = []
+        #self.player1_pos = self.epucks[0].getPosition()
+        #self.player2_pos = self.epucks[1].getPosition()
+        #print "Player positions", self.player1_pos, self.player2_pos
         r = rand()
         # print r
         if r < 0.5:
@@ -101,23 +111,25 @@ class IsmaExpSetup(object):
         addCircle(self, pos=(0, 5 + th), vel=(0, 0), bDynamic=False, bCollideNoOne=True)
         addCircle(self, pos=(0, 0 + th), vel=(0, 0), bDynamic=False, bCollideNoOne=True)
         # addWalls((0, 0), dx=3.75, dh=0.1, h=3, th=th)
-        addWalls((0, 0), dx=5.5, dh=0.8, h=3.4, th=th)
+        # addWalls((0, 0), dx=5.5, dh=0.8, h=3.4, th=th)
         self.timer = 0
 
     def update(self):
         """Check epucks positions to see if they reached the rewards"""
         self.checkPositions()
 
-        """Set out a timer to store data each 3 seconds"""
+        """Set out a timer to store data TWICE every second"""
         if self.timer == 0:
             self.timestep += 1
+            # print "P1 absolute position:", self.p1_absposx, self.p1_absposy
+            # print "P2 absolute position:", self.p2_absposx, self.p2_absposy
             # print "BITCH! timestep number: ", self.timestep
             self.storedata()
         self.timer += 1
-        self.timer = self.timer % 90  # each 3 secs store data (in 30 FPS), with 60FPs: each 1,5 secs
+        self.timer = self.timer % 30  # ie: with 90, each 3 secs store data (in 30 FPS), with 60FPs: each 1,5 secs
 
         """If the round lasts more than 30 timesteps, the round ends"""
-        if self.timestep > 30:
+        if self.timestep > 60:
             print "TIMEOUT !! This round doesn't count!"
             self.timeout = True
             self.timeout_n += 1
@@ -127,7 +139,6 @@ class IsmaExpSetup(object):
         """Update of epucks positions and gradient sensors: other and reward."""
         for e in self.epucks:
             e.update()
-            # print "avoid_epuck error:", e.sigma
             pos = e.getPosition()
 
             for g in e.GradSensors:
@@ -147,12 +158,34 @@ class IsmaExpSetup(object):
         """Get the positions of both epucks and rewards"""
         self.player1_pos = self.epucks[0].getPosition()
         self.player2_pos = self.epucks[1].getPosition()
-        self.player1_ang = np.rad2deg(self.epucks[0].getAngle())
-        self.player2_ang = np.rad2deg(self.epucks[1].getAngle())
+
+        # convert positions and angles
+        self.p1_absposx = round(self.player1_pos[0], 3)
+        self.p1_absposy = round(self.player1_pos[1], 3)
+        self.p1_absposx = ((self.p1_absposx + 4)  * (540-180)/8) + 180
+        self.p1_absposy = ((self.p1_absposy - 2.7) * (240-360)/2.5) + 240
+        
+        self.p2_absposx = round(self.player2_pos[0], 3)
+        self.p2_absposy = round(self.player2_pos[1], 3)
+        self.p2_absposx = ((self.p2_absposx - 4)  * (540-180)/8) + 540
+        self.p2_absposy = ((self.p2_absposy - 2.7) * (240-360)/2.5) + 240
+
+        self.player1_ang = int(np.rad2deg(self.epucks[0].getAngle())) + 90
+        self.player2_ang = int(np.rad2deg(self.epucks[1].getAngle())) + 90
+        self.player1_ang = self.player1_ang % 360
+        self.player2_ang = self.player2_ang % 360
         # print "Player 1 angle: ", self.player1_ang
         # print "Player 2 angle: ", self.player2_ang
+
         hreward_pos = self.objs[0].position
         lreward_pos = self.objs[1].position
+        # print "High and Low Reward pos", hreward_pos, lreward_pos
+        # hreward_abs_posx = (hreward_pos[0] * (540-360)/4) + 360
+        # hreward_abs_posy = (round(hreward_pos[1]-5.2, 3) * (120-360)/5) + 120   
+        # lreward_abs_posx = (lreward_pos[0] * (540-360)/4) + 360
+        # lreward_abs_posy = (round(lreward_pos[1]-0.2, 3) * (120-360)/5) + 360
+        # print "High Reward positions", hreward_abs_posx, hreward_abs_posy
+        # print "Low Reward positions", lreward_abs_posx, lreward_abs_posy
 
         """Calculate distance between both epucks and rewards"""
         p1hr_dist = dist(self.player1_pos, hreward_pos)
@@ -160,53 +193,60 @@ class IsmaExpSetup(object):
         p2hr_dist = dist(self.player2_pos, hreward_pos)
         p2lr_dist = dist(self.player2_pos, lreward_pos)
 
-        if (p1hr_dist < 0.5):  # REWARD AT 0.5, CIRCLE AT 1.25
+        if (p1hr_dist < config_data['reward_area']):  # REWARD AT 0.5, CIRCLE AT 1.25 
             if (p2hr_dist < 1.5):
                 print "IT'S A TIE !! Both players get 0 points"
+                self.ties_n += 1
                 self.savedata()
                 self.restart()
             else:
                 print "Player 1 obtained the HIGH Reward !!"
-                # print "Round Points - Player 1: 4 , Player 2: 1"
+                self.player1_wins += 1
                 if (self.payoff_structure == "high"): self.player1_score += 4
                 if (self.payoff_structure == "low"): self.player1_score += 2
                 self.player2_score += 1
                 self.savedata()
                 self.restart()
 
-        elif (p2hr_dist < 0.5):
+        elif (p2hr_dist < config_data['reward_area']):
             if (p1hr_dist < 1.5):
                 print "IT'S A TIE !! Both players get 0 points"
+                self.ties_n += 1
                 self.savedata()
                 self.restart()
             else:
                 print "Player 2 obtained the HIGH Reward !!"
+                self.player2_wins += 1
                 if (self.payoff_structure == "high"): self.player2_score += 4
                 if (self.payoff_structure == "low"): self.player2_score += 2
                 self.player1_score += 1
                 self.savedata()
                 self.restart()
 
-        if (p1lr_dist < 0.5):
+        if (p1lr_dist < config_data['reward_area']):
             if (p2lr_dist < 1.5):
                 print "IT'S A TIE !! Both players get 0 points"
+                self.ties_n += 1
                 self.savedata()
                 self.restart()
             else:
                 print "Player 1 obtained the LOW Reward !!"
+                self.player2_wins += 1
                 self.player1_score += 1
                 if (self.payoff_structure == "high"): self.player2_score += 4
                 if (self.payoff_structure == "low"): self.player2_score += 2
                 self.savedata()
                 self.restart()
 
-        elif (p2lr_dist < 0.5):
+        elif (p2lr_dist < config_data['reward_area']):
             if (p1lr_dist < 1.5):
                 print "IT'S A TIE !! Both players get 0 points"
+                self.ties_n += 1
                 self.savedata()
                 self.restart()
             else:
                 print "Player 2 obtained the LOW Reward !!"
+                self.player1_wins += 1
                 self.player2_score += 1
                 if (self.payoff_structure == "high"): self.player1_score += 4
                 if (self.payoff_structure == "low"): self.player1_score += 2
@@ -214,14 +254,13 @@ class IsmaExpSetup(object):
                 self.restart()
 
     def storedata(self):
-        # player1_data = [self.round_n, self.timestep, self.high_reward_location, self.player1, self.player1_pos[0], self.player1_pos[1], self.player1_ang, self.player1_score, 0]
-        # player2_data = [self.round_n, self.timestep, self.high_reward_location, self.player2, self.player2_pos[0], self.player2_pos[1], self.player2_ang, self.player2_score, 0]
+        # if the round reaches the timeout condition, record it in the last value of the data 
         if (self.timeout is True):
-            player1_data = [self.round_n, self.timestep, self.high_reward_location, self.player1, self.player1_pos[0], self.player1_pos[1], self.player1_ang, self.player1_score, self.timeout_n]
-            player2_data = [self.round_n, self.timestep, self.high_reward_location, self.player2, self.player2_pos[0], self.player2_pos[1], self.player2_ang, self.player2_score, self.timeout_n]
+            player1_data = [self.round_n, self.timestep, self.high_reward_location, self.player1, self.p1_absposx, self.p1_absposy, self.player1_ang, self.player1_score, self.timeout_n]
+            player2_data = [self.round_n, self.timestep, self.high_reward_location, self.player2, self.p2_absposx, self.p2_absposy, self.player2_ang, self.player2_score, self.timeout_n]
         else:
-            player1_data = [self.round_n, self.timestep, self.high_reward_location, self.player1, self.player1_pos[0], self.player1_pos[1], self.player1_ang, self.player1_score, 0]
-            player2_data = [self.round_n, self.timestep, self.high_reward_location, self.player2, self.player2_pos[0], self.player2_pos[1], self.player2_ang, self.player2_score, 0]            
+            player1_data = [self.round_n, self.timestep, self.high_reward_location, self.player1, self.p1_absposx, self.p1_absposy, self.player1_ang, self.player1_score, 0]
+            player2_data = [self.round_n, self.timestep, self.high_reward_location, self.player2, self.p2_absposx, self.p2_absposy, self.player2_ang, self.player2_score, 0]            
 
         self.round_data.append(player1_data)
         self.round_data.append(player2_data)
@@ -257,7 +296,6 @@ class IsmaExpSetup(object):
         self.checkPositions()
         """Relocate the reward spots again"""
         r = rand()
-        # print r
         if r < 0.5:
             self.high_reward_location = "top"
             self.objs[0].position = (0, 5 + th)

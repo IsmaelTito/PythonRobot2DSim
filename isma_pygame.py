@@ -17,7 +17,8 @@ box2dWH = (PyGameUtils.SCREEN_WIDTH, PyGameUtils.SCREEN_HEIGHT)
 # PYGAME initialization
 # ***************************
 pygame.init()
-PyGameUtils.setScreenSize(1000, 600)
+PyGameUtils.setScreenSize(900, 600)
+# PyGameUtils.setScreenSize(720, 480)
 box2dWH = (PyGameUtils.SCREEN_WIDTH, PyGameUtils.SCREEN_HEIGHT)
 
 # flags = FULLSCREEN | DOUBLEBUF
@@ -29,19 +30,17 @@ surfarray.use_arraytype('numpy')
 pygame.display.set_caption('Epuck AWESOME Simulation')
 clock = pygame.time.Clock()
 
-exp = IsmaExpSetup(n=2, rounds=50, payoff="high", debug=True)
+exp = IsmaExpSetup(n=2, rounds=50, payoff="low", debug=True)
 exp_time = 0
-# epuck = IsmaEpuck()
 
 running = True
 
 while running:
     exp_time = pygame.time.get_ticks()/1000
-    # left, right = epuck.prox_activations()
-    # epuck.left_wheel = 1.0 - left   # to check
-    # epuck.right_wheel = 1.0 - right   # to check
+
     if (exp.round_n > exp.total_rounds):
         running = False
+
     # Check the event queue
     for event in pygame.event.get():
         if(event.type != pygame.KEYDOWN):
@@ -68,7 +67,6 @@ while running:
     PyGameUtils.draw_world(screen)
 
     exp.update()
-    # exp.checkPositions()
     Box2DWorld.step()
 
     # PyGameUtils.draw_salient(screen, exp)
@@ -77,23 +75,6 @@ while running:
     clock.tick(60)
     pygame.display.set_caption("FPS: {:6.3}{}".format(clock.get_fps(), " "*5))
 
-    # If one of the ePucks gets the High Reward, the other get instantly the Low Reward and the experiment ends
-    # if exp.epucks[0].reward_score == 2:
-        # exp.epucks[1].reward_score = 1
-        # running = False
-
-    # if exp.epucks[1].reward_score == 2:
-        # exp.epucks[0].reward_score = 1
-        # running = False
-
-    # If the experiment reaches 10 seconds without any ePuck getting a reward, the experiment ends
-    # if exp_time >= 10:
-        # exp.epucks[0].reward_score = -1
-        # exp.epucks[1].reward_score = -1
-        # running = False
-
 
 pygame.quit()
 print('Done!')
-# print "Epuck 1 FINAL reward score: ", exp.epucks[0].reward_score
-# print "Epuck 2 FINAL reward score: ", exp.epucks[1].reward_score

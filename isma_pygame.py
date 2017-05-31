@@ -30,7 +30,8 @@ surfarray.use_arraytype('numpy')
 pygame.display.set_caption('Epuck AWESOME Simulation')
 clock = pygame.time.Clock()
 
-exp = IsmaExpSetup(n=2, rounds=50, payoff="high", debug=True)
+exp = IsmaExpSetup(n=2, rounds=60, payoff="low", contextual=False, debug=True)
+#exp = IsmaExpSetup(n=2, rounds=50, payoff="high", contextual=False, debug=True)
 exp_time = 0
 
 running = True

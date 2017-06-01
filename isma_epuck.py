@@ -71,6 +71,7 @@ class IsmaEpuck(Epuck):
         #c = 0.6 -> c = 2.4 if self.high_reward_value == 4 else 1.6
         #c = 3.2 if self.high_reward_value == 4 else 2.14
         #c = 2.4 if self.high_reward_value == 4 else 1.6
+        c = 0.6
         #left_exp = c * exp(config_data['epuck_exp']*left)
         #right_exp = c * exp(config_data['epuck_exp']*right)
         #left_exp = c * config_data['epuck_exp'] * exp(self.high_reward_value*left)

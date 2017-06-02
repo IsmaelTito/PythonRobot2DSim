@@ -56,24 +56,24 @@ def addCircle(who, pos=(0, 0), vel=(0, 0), bDynamic=False, bCollideNoOne=False):
 class IsmaExpSetup(object):
     """Exp setup class with two epucks and two reward sites."""
 
-    def __init__(self, n=1, rounds=50, payoff="high", debug=False):
+    def __init__(self, n=1, rounds=50, payoff="high", contextual=False, debug=False):
         """Initialize the variables we need to store in each round of the game"""
-        self.parameters = [config_data['epuck_error'], config_data['reward_error'], config_data['epuck_exp'], config_data['reward_exp'], config_data['l_reward_weight'], config_data['reward_area']]
-        self.total_rounds = rounds
+        self.parameters = [config_data['epuck_error'], config_data['reward_error'], config_data['epuck_exp'], config_data['reward_exp'], config_data['l_reward_weight'], config_data['reward_area'], config_data['reward_c']]
+        self.dyadID = "game_"+id_generator(8)+"-"+id_generator(4)+"-"+id_generator(4)+"-"+id_generator(4)+"-"+id_generator(12)
         self.payoff_structure = payoff         # HIGH: 4v1, LOW: 2v1
+        self.contextual = contextual
+        self.total_rounds = rounds
         self.round_n = 1
-        self.timestep = 0
-        self.timeout_n = 0
+        self.round_data = []
+        self.timer, self.timestep, self.timeout_n = 0, 0, 0
         self.timeout = False
         self.high_reward_location = "-"
         self.player1, self.player2 = "host", "other"
         self.player1_pos, self.player2_pos = (0, 0), (0, 0)
-        # self.p1_abspos = (0, 0)
         self.player1_ang, self.player2_ang = 0, 0
         self.player1_score, self.player2_score = 0, 0
         self.player1_wins, self.player2_wins, self.ties_n = 0, 0, 0
-        self.dyadID = "game_"+id_generator(8)+"-"+id_generator(4)+"-"+id_generator(4)+"-"+id_generator(4)+"-"+id_generator(12)
-        self.round_data = []
+
         """Create the two epucks, two rewards with circles around and walls."""
         global bDebug
         bDebug = debug
@@ -85,6 +85,7 @@ class IsmaExpSetup(object):
         th = .2
         positions = [(-4, 2.5 + th), (4, 2.5 + th)]
         angles = [2 * np.pi, np.pi]
+        #self.epucks = [IsmaEpuck(position=positions[i], angle=angles[i], frontIR=2, nother=2, nrewsensors=4) for i in range(n)]
         self.epucks = [IsmaEpuck(position=positions[i], angle=angles[i], nother=2, nrewsensors=4) for i in range(n)]
         for e in self.epucks:
             if (self.payoff_structure == "high"):
@@ -93,12 +94,11 @@ class IsmaExpSetup(object):
             if (self.payoff_structure == "low"):
                 e.high_reward_value = 2
                 # print "High reward value:", e.high_reward_value
-        self.objs = []
         #self.player1_pos = self.epucks[0].getPosition()
         #self.player2_pos = self.epucks[1].getPosition()
         #print "Player positions", self.player1_pos, self.player2_pos
+        self.objs = []
         r = rand()
-        # print r
         if r < 0.5:
             self.high_reward_location = "top"
             addReward(self, pos=(0, 5 + th), vel=(0, 0), bDynamic=False, bCollideNoOne=True)  # BIG reward
@@ -112,9 +112,23 @@ class IsmaExpSetup(object):
         addCircle(self, pos=(0, 0 + th), vel=(0, 0), bDynamic=False, bCollideNoOne=True)
         # addWalls((0, 0), dx=3.75, dh=0.1, h=3, th=th)
         # addWalls((0, 0), dx=5.5, dh=0.8, h=3.4, th=th)
-        self.timer = 0
+
+        """The contextual layer of each epuck selects the action that will take this round"""
+        if (self.contextual is True):
+            for e in self.epucks:
+                e.contextual = True
+                e.select_action()
+                #self.epucks[0].action = self.epucks[0].contextual_layer.act(self.epucks[0].state)
+                #self.epucks[1].action = self.epucks[1].contextual_layer.act(self.epucks[1].state)
+            print "Player 1 selected action", self.epucks[0].action
+            print "Player 2 selected action", self.epucks[1].action
+
 
     def update(self):
+        """The contextual layer of each epuck selects the action that will take this round"""
+        # self.epucks[0].action = self.epucks[0].contextual_layer.act(self.epucks[0].state)
+        # self.epucks[1].action = self.epucks[1].contextual_layer.act(self.epucks[1].state)
+
         """Check epucks positions to see if they reached the rewards"""
         self.checkPositions()
 
@@ -124,6 +138,7 @@ class IsmaExpSetup(object):
             # print "P1 absolute position:", self.p1_absposx, self.p1_absposy
             # print "P2 absolute position:", self.p2_absposx, self.p2_absposy
             # print "BITCH! timestep number: ", self.timestep
+            #print "Avoid Epuck Weight:", self.epucks[0].avoid_epuck_w
             self.storedata()
         self.timer += 1
         self.timer = self.timer % 40  # ie: with 90, each 3 secs store data (in 30 FPS), with 60FPs: each 1,5 secs
@@ -168,12 +183,12 @@ class IsmaExpSetup(object):
         self.player2_pos = self.epucks[1].getPosition()
 
         """Calculate distance between both epucks"""
-        epuck_dist = dist(self.player1_pos, self.player2_pos)
-        epuck_dist = self.constrain(epuck_dist, 0, 2)
+        #epuck_dist = dist(self.player1_pos, self.player2_pos)
+        #epuck_dist = self.constrain(epuck_dist, 0, 2)
         # print "epuck distance:", epuck_dist
 
-        for e in self.epucks:
-            e.avoid_epuck_w = 2.5 - epuck_dist
+        #for e in self.epucks:
+        #    e.avoid_epuck_w = 2.5 - epuck_dist
 
         # convert positions and angles
         #self.p1_absposx = round(self.player1_pos[0], 3)
@@ -217,14 +232,31 @@ class IsmaExpSetup(object):
             if (p2hr_dist < 1.5):
                 print "IT'S A TIE !! Both players get 0 points"
                 self.ties_n += 1
+                if (self.contextual is True): self.epucks[0].update_weights(2,0)   #STATE 2:Tie ; REWARD: 0
+                #self.epucks[0].contextual_layer.update(2, 0, self.epucks[0].action)
+                #self.epucks[0].state = 2
+                if (self.contextual is True): self.epucks[1].update_weights(2,0)   #STATE 2:Tie ; REWARD: 0
+                #self.epucks[1].contextual_layer.update(2, 0, self.epucks[1].action)
+                #self.epucks[1].state = 2
                 self.savedata()
                 self.restart()
             else:
                 print "Player 1 obtained the HIGH Reward !!"
                 self.player1_wins += 1
-                if (self.payoff_structure == "high"): self.player1_score += 4
-                if (self.payoff_structure == "low"): self.player1_score += 2
+                if (self.payoff_structure == "high"):
+                    self.player1_score += 4
+                    if (self.contextual is True): self.epucks[0].update_weights(1,4)   #STATE 1:High ; REWARD: 4
+                    #self.epucks[0].contextual_layer.update(1, 4, self.epucks[0].action)
+                    #self.epucks[0].state = 1
+                if (self.payoff_structure == "low"):
+                    self.player1_score += 2
+                    if (self.contextual is True): self.epucks[0].update_weights(1,2)   #STATE 1:High ; REWARD: 2
+                    #self.epucks[0].contextual_layer.update(1, 2, self.epucks[0].action)
+                    #self.epucks[0].state = 1
                 self.player2_score += 1
+                if (self.contextual is True): self.epucks[1].update_weights(0,1)   #STATE 0:Low ; REWARD: 1
+                #self.epucks[1].contextual_layer.update(0, 1, self.epucks[1].action)
+                #self.epucks[1].state = 0
                 self.savedata()
                 self.restart()
 
@@ -232,20 +264,43 @@ class IsmaExpSetup(object):
             if (p1hr_dist < 1.5):
                 print "IT'S A TIE !! Both players get 0 points"
                 self.ties_n += 1
+                if (self.contextual is True): self.epucks[0].update_weights(2,0)   #STATE 2:Tie ; REWARD: 0
+                #self.epucks[0].contextual_layer.update(2, 0, self.epucks[0].action)
+                #self.epucks[0].state = 2
+                if (self.contextual is True): self.epucks[1].update_weights(2,0)   #STATE 2:Tie ; REWARD: 0
+                #self.epucks[1].contextual_layer.update(2, 0, self.epucks[1].action)
+                #self.epucks[1].state = 2
                 self.savedata()
                 self.restart()
             else:
                 print "Player 2 obtained the HIGH Reward !!"
                 self.player2_wins += 1
-                if (self.payoff_structure == "high"): self.player2_score += 4
-                if (self.payoff_structure == "low"): self.player2_score += 2
+                if (self.payoff_structure == "high"):
+                    self.player2_score += 4
+                    if (self.contextual is True): self.epucks[1].update_weights(1,4)   #STATE 1:High ; REWARD: 4
+                    #self.epucks[1].contextual_layer.update(1, 4, self.epucks[1].action)
+                    #self.epucks[1].state = 1
+                if (self.payoff_structure == "low"):
+                    self.player2_score += 2
+                    if (self.contextual is True): self.epucks[1].update_weights(1,2)   #STATE 1:High ; REWARD: 2
+                    #self.epucks[1].contextual_layer.update(1, 2, self.epucks[1].action)
+                    #self.epucks[1].state = 1
                 self.player1_score += 1
+                if (self.contextual is True): self.epucks[0].update_weights(0,1)   #STATE 0:Low ; REWARD: 1
+                #self.epucks[0].contextual_layer.update(0, 1, self.epucks[0].action)
+                #self.epucks[0].state = 0
                 self.savedata()
                 self.restart()
 
         if (p1lr_dist < config_data['reward_area']):
             if (p2lr_dist < 1.5):
                 print "IT'S A TIE !! Both players get 0 points"
+                if (self.contextual is True): self.epucks[0].update_weights(2,0)   #STATE 2:Tie ; REWARD: 0
+                #self.epucks[0].contextual_layer.update(2, 0, self.epucks[0].action)
+                #self.epucks[0].state = 2
+                if (self.contextual is True): self.epucks[1].update_weights(2,0)   #STATE 2:Tie ; REWARD: 0
+                #self.epucks[1].contextual_layer.update(2, 0, self.epucks[1].action)
+                #self.epucks[1].state = 2
                 self.ties_n += 1
                 self.savedata()
                 self.restart()
@@ -253,14 +308,31 @@ class IsmaExpSetup(object):
                 print "Player 1 obtained the LOW Reward !!"
                 self.player2_wins += 1
                 self.player1_score += 1
-                if (self.payoff_structure == "high"): self.player2_score += 4
-                if (self.payoff_structure == "low"): self.player2_score += 2
+                if (self.contextual is True): self.epucks[0].update_weights(0,1)   #STATE 0:Low ; REWARD: 1
+                #self.epucks[0].contextual_layer.update(0, 1, self.epucks[0].action)
+                #self.epucks[0].state = 0
+                if (self.payoff_structure == "high"):
+                    self.player2_score += 4
+                    if (self.contextual is True): self.epucks[1].update_weights(1,4)   #STATE 1:High ; REWARD: 4
+                    #self.epucks[1].contextual_layer.update(1, 4, self.epucks[1].action)
+                    #self.epucks[1].state = 1
+                if (self.payoff_structure == "low"):
+                    self.player2_score += 2
+                    if (self.contextual is True): self.epucks[1].update_weights(1,2)   #STATE 1:High ; REWARD: 2
+                    #self.epucks[1].contextual_layer.update(1, 2, self.epucks[1].action)
+                    #self.epucks[1].state = 1
                 self.savedata()
                 self.restart()
 
         elif (p2lr_dist < config_data['reward_area']):
             if (p1lr_dist < 1.5):
                 print "IT'S A TIE !! Both players get 0 points"
+                if (self.contextual is True): self.epucks[0].update_weights(2,0)   #STATE 2:Tie ; REWARD: 0
+                #self.epucks[0].contextual_layer.update(2, 0, self.epucks[0].action)
+                #self.epucks[0].state = 2
+                if (self.contextual is True): self.epucks[1].update_weights(2,0)   #STATE 2:Tie ; REWARD: 0
+                #self.epucks[1].contextual_layer.update(2, 0, self.epucks[1].action)
+                #self.epucks[1].state = 2
                 self.ties_n += 1
                 self.savedata()
                 self.restart()
@@ -268,8 +340,19 @@ class IsmaExpSetup(object):
                 print "Player 2 obtained the LOW Reward !!"
                 self.player1_wins += 1
                 self.player2_score += 1
-                if (self.payoff_structure == "high"): self.player1_score += 4
-                if (self.payoff_structure == "low"): self.player1_score += 2
+                if (self.contextual is True): self.epucks[1].update_weights(0,1)   #STATE 0:Low ; REWARD: 1
+                #self.epucks[1].contextual_layer.update(0, 1, self.epucks[1].action)
+                #self.epucks[1].state = 0
+                if (self.payoff_structure == "high"): 
+                    self.player1_score += 4
+                    if (self.contextual is True): self.epucks[0].update_weights(1,4)   #STATE 1:High ; REWARD: 4
+                    #self.epucks[0].contextual_layer.update(1, 4, self.epucks[0].action)
+                    #self.epucks[0].state = 1
+                if (self.payoff_structure == "low"): 
+                    self.player1_score += 2
+                    if (self.contextual is True): self.epucks[0].update_weights(1,2)   #STATE 1:High ; REWARD: 2
+                    #self.epucks[0].contextual_layer.update(1, 2, self.epucks[0].action)
+                    #self.epucks[0].state = 1
                 self.savedata()
                 self.restart()
 
@@ -326,3 +409,11 @@ class IsmaExpSetup(object):
             self.objs[1].position = (0, 5 + th)
 
         print "STARTING ROUND...", self.round_n
+        """The contextual layer of each epuck selects the action that will take this round"""
+        if (self.contextual is True):
+            for e in self.epucks:
+                e.select_action()
+                #self.epucks[0].action = self.epucks[0].contextual_layer.act(self.epucks[0].state)
+                #self.epucks[1].action = self.epucks[1].contextual_layer.act(self.epucks[1].state)
+            print "Player 1 selected action", self.epucks[0].action
+            print "Player 2 selected action", self.epucks[1].action

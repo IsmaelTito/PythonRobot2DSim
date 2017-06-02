@@ -3,6 +3,15 @@ from copy import deepcopy
 from numpy.random import randn
 from scipy import stats
 
+
+# Value learning
+## lr: learning rate
+## discount: discount factor
+
+# PolicyLearning
+## lr: learning rate
+## alpha_laplace (maybe keep it as 1 and play on lr instead): alpha of the laplace succession rule   (ni + alpha) / (N + alpha * k), with N=sum(ni) and k = cardinality
+
 class ValueLearning(object):
     def __init__(self, n_states, lr=0.1, discount=0.1):
         self.lr = lr
@@ -23,7 +32,7 @@ class ValueLearning(object):
 
 
 class PolicyLearning(object):
-    def __init__(self, n_states, n_actions, lr=0.1):
+    def __init__(self, n_states, n_actions, lr=0.3):
         self.n_states = n_states
         self.n_actions = n_actions
         self.alpha_laplace = 1
